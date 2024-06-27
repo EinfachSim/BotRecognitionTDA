@@ -19,3 +19,10 @@ DONE:
 Probleme:
 - Dockerfile für Kubernetes Service erstellt, aber wie benutzen? Main Frage: Wie bekomme ich die Daten nachher wieder runter und wie erstelle ich den Service so dass er ein Persistent Volume benutzt?
 - docker push failed, weil permissions fehlen
+
+
+
+IDEE MAPPER:
+Persistenzdiagramme von Ego Networks per MDS in point cloud umwandeln --> Mapper darauf anwenden
+- einmal um outliers zu sehen (meh)
+- oder splitten in bots und humans und für bot subset mapper anwenden, dann einzelne Botgruppen erkennen um Bot subklassen für statistical approach zu haben --> mehr explainable und fine-grained
