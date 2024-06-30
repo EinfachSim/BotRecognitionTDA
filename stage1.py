@@ -2,7 +2,11 @@ import numpy as np
 import pandas as pd
 import networkx as nx
 import gtda as tda
+from gtda.homology import VietorisRipsPersistence
+from gtda.pipeline import Pipeline
+from gtda.diagrams import Scaler, PersistenceImage, PersistenceLandscape
 import math
+import matplotlib.pyplot as plt
 
 USERS_PATH = "../dataset/preprocessed/filtered_users.csv"
 EDGES_PATH = "../dataset/preprocessed/filtered_edges.csv"
@@ -33,8 +37,26 @@ returns a list of np.ndarrays of shape (1,n_features, 3)
 each entry in that list corresponds to a persistence diagram in the given homology
 dimension
 """
-def get_persistence_diagram(ego: np.ndarray) -> np.ndarray:
-    WVR = tda.WeightedRipsPersistence(metric="precomputed")
+def get_persistence_diagram(ego: np.ndarray, pipeline: tda.pipeline.Pipeline) -> np.ndarray:
+    #VR needs to have np.inf for absent edges, NOT ZERO!
+    ego[ego == 0] = np.inf
+    # n_jobs set to -1 leads to using all processors
+    
+    diagram = pipeline.fit_transform([ego])
+    print(diagram)
+    PI = PersistenceImage(sigma=1)
+    p_image = PI.fit_transform(diagram)
+    PI.plot(p_image, homology_dimension_idx=1).show()
+    
+    p_image_r = p_image[0, 0, :, :]
+    p_image_g = p_image[0, 1, :, :]
+    p_image_b = p_image[0, 2, :, :]
+    rgb_uint8 = np.dstack((p_image_r,p_image_g,p_image_b))
+    plt.imshow(rgb_uint8)
+    plt.show()
+    p_landscape = PersistenceLandscape().fit_transform(diagram)
+    return diagram
+
 
 """
 This method is used to get the degrees of strength per edge as defined in mca.
@@ -61,12 +83,11 @@ Takes in a graph G and an ego network from a node in G and optionally a scaling 
 default L = 100
 Returns an nx.Graph with the edge weights being as seen in the mca paper
 """
-def get_ego_undirected_weighted(G, ego_nw, L=1):
+def get_ego_undirected_weighted(G, ego_nw, L=100):
     ego = ego_nw.copy()
     #Get degrees of strength
     s, mean, std = get_degrees_of_strength(G, ego_nw)
     #Compute weights for every edge
-    weights = {}
     for e in ego.edges:
         w = L * (1/(1+np.exp((-s[e] + mean)/std)))
         ego[e[0]][e[1]]["weight"] = w
@@ -88,6 +109,18 @@ if __name__ == "__main__":
     print("Building Graph...")
     G = nx.from_pandas_edgelist(edges_df, "source_id", "target_id", create_using=nx.DiGraph())
     print("Done!")
+    steps = [
+        ("VR", VietorisRipsPersistence(metric="precomputed", homology_dimensions=[0,1,2], n_jobs=1))
+        #("Scaling", Scaler(function=lambda x: np.max(x)))
+        #Need to read more for these two
+        #("Persistence Images", PersistenceImage()),
+        #("Persistence Landscape", PersistenceLandscape())
+    ]
+    pipeline = Pipeline(steps)
     #Just for testing purposes:
-    ego_nw = get_distance_matrix("u1484424461915127810", G)
-    #print(get_persistence_diagram(ego_nw))
+    ego_nw = get_distance_matrix("u4455308832", G)
+    np.save("ego.npy", ego_nw)
+    
+    #To load for testing from file
+    #ego_nw = np.load("ego.npy")
+    get_persistence_diagram(ego_nw, pipeline)
