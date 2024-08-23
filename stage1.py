@@ -1,20 +1,19 @@
 import numpy as np
 import pandas as pd
-import networkx as nx
+import graphscope.nx as nx
 import gtda as tda
 from gtda.homology import VietorisRipsPersistence
 from gtda.pipeline import Pipeline
 from gtda.diagrams import Scaler, PersistenceImage, PersistenceLandscape
 import math
-import matplotlib.pyplot as plt
 
-USERS_PATH = "../dataset/preprocessed/filtered_users.csv"
-EDGES_PATH = "../dataset/preprocessed/filtered_edges.csv"
+USERS_PATH = "data_preprocessed/filtered_users.csv"
+EDGES_PATH = "data_preprocessed/filtered_edges.csv"
 #returns the distance matrix for the user's ego network specified in user_id.
 #needs some adjustment to return not only the adjacency matrix but
 #the weighted adj_matrix
 #returned np.array should be sparse
-def get_distance_matrix(user_id: str, G: nx.DiGraph) -> np.ndarray:
+def get_distance_matrix(user_id: str, G: nx.DiGraph, L=100) -> np.ndarray:
     print(f"Getting Ego Network for user {user_id}...")
     ego = nx.ego_graph(G, user_id, radius=1, undirected=True)
     """
@@ -23,11 +22,9 @@ def get_distance_matrix(user_id: str, G: nx.DiGraph) -> np.ndarray:
         [] get some statistics, need to read Felix' and Christian's paper to decide which one.
     """
     #update the weights according to mca paper
-    ego = get_ego_undirected_weighted(G, ego)
-    print(nx.adjacency_matrix(ego).toarray())
+    ego = get_ego_undirected_weighted(G, ego, L)
     # toarray() because nx returns a scipy sparse matrix, but giotto (TDA)
     # assumes a np.ndarray
-    print("Done!")
     return nx.adjacency_matrix(ego).toarray()
 """
 This method computed the persistence diagrams obtained by WeightedVietorisRips
@@ -40,22 +37,20 @@ dimension
 def get_persistence_diagram(ego: np.ndarray, pipeline: tda.pipeline.Pipeline) -> np.ndarray:
     #VR needs to have np.inf for absent edges, NOT ZERO!
     ego[ego == 0] = np.inf
-    # n_jobs set to -1 leads to using all processors
     
     diagram = pipeline.fit_transform([ego])
-    print(diagram)
     PI = PersistenceImage(sigma=1)
     p_image = PI.fit_transform(diagram)
-    PI.plot(p_image, homology_dimension_idx=1).show()
-    
-    p_image_r = p_image[0, 0, :, :]
-    p_image_g = p_image[0, 1, :, :]
-    p_image_b = p_image[0, 2, :, :]
-    rgb_uint8 = np.dstack((p_image_r,p_image_g,p_image_b))
-    plt.imshow(rgb_uint8)
-    plt.show()
     p_landscape = PersistenceLandscape().fit_transform(diagram)
-    return diagram
+    
+    # PI.plot(p_image, homology_dimension_idx=1).show()
+    # p_image_r = p_image[0, 0, :, :]
+    # p_image_g = p_image[0, 1, :, :]
+    # p_image_b = p_image[0, 2, :, :]
+    # rgb_uint8 = np.dstack((p_image_r,p_image_g,p_image_b))
+    # plt.imshow(rgb_uint8)
+    # plt.show()
+    return (diagram, p_image, p_landscape)
 
 
 """
@@ -109,18 +104,31 @@ if __name__ == "__main__":
     print("Building Graph...")
     G = nx.from_pandas_edgelist(edges_df, "source_id", "target_id", create_using=nx.DiGraph())
     print("Done!")
+
     steps = [
-        ("VR", VietorisRipsPersistence(metric="precomputed", homology_dimensions=[0,1,2], n_jobs=1))
+        # n_jobs set to -1 leads to using all processors
+        ("VR", VietorisRipsPersistence(metric="precomputed", homology_dimensions=[0,1,2], n_jobs=-1, max_edge_length=100))
         #("Scaling", Scaler(function=lambda x: np.max(x)))
         #Need to read more for these two
         #("Persistence Images", PersistenceImage()),
         #("Persistence Landscape", PersistenceLandscape())
     ]
     pipeline = Pipeline(steps)
-    #Just for testing purposes:
-    ego_nw = get_distance_matrix("u4455308832", G)
-    np.save("ego.npy", ego_nw)
+    for node_id in users_df["id"]:
+        ego_nw = get_distance_matrix(node_id, G, L=100)
+        np.save(f"data/ego_networks/ego_{node_id}.npy", ego_nw)
+        diag, pim, pla = get_persistence_diagram(ego_nw, pipeline)
+        np.save(f"data/p_diagrams/p_diag_{node_id}.npy", diag)
+        np.save(f"data/p_images/p_im_{node_id}.npy", pim)
+        np.save(f"data/p_landscapes/p_land_{node_id}.npy", pla)
+    # #Just for testing purposes:
+    # node_id = "u4455308832"
+    # ego_nw = get_distance_matrix(node_id, G, L=100)
+    # np.save(f"data/ego_networks/ego_{node_id}.npy", ego_nw)
     
-    #To load for testing from file
-    #ego_nw = np.load("ego.npy")
-    get_persistence_diagram(ego_nw, pipeline)
+    # #To load for testing from file
+    # #ego_nw = np.load("ego.npy")
+    # diag, pim, pla = get_persistence_diagram(ego_nw, pipeline)
+    # np.save(f"data/p_diagrams/p_diag_{node_id}.npy", diag)
+    # np.save(f"data/p_images/p_im_{node_id}.npy", pim)
+    # np.save(f"data/p_landscapes/p_land_{node_id}.npy", pla)

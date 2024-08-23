@@ -2,7 +2,7 @@ FROM amd64/python:3.9.12
 
 COPY kubernetes/requirements.txt requirements.txt
 
-RUN pip install -r requirements.txt && mkdir data
+RUN pip install -r requirements.txt && mkdir data && mkdir data/ego_networks && mkdir data/p_diagrams && mkdir data/p_images && mkdir data/p_landscapes
 
 COPY stage1.py stage1.py
 

@@ -1,2 +1,4 @@
 data_preprocessed/
 ego.npy
+data/
+data_from_pod/

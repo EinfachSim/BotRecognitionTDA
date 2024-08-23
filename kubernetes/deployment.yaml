@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: teststage1-deployment
+  namespace: koehl
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: teststage1
+  template:
+    metadata:
+      labels:
+        app: teststage1
+    spec:
+      containers:
+      - name: stage1
+        image: registry.cs.uni-bonn.de:5005/its-wg/fatdata/general/stage1_cluster_img_simon
+        # volumeMounts:
+        # - name: my-pvc  # Wie auch immer du es nennen möchtest
+        #   mountPath: data/
+      imagePullSecrets:
+        - name: fatdatacred
+      # volumes:
+      # - name: my-pvc
+      #   persistentVolumeClaim:
+      #     claimName: ceph-pvc-koehl
