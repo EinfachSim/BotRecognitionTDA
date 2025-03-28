@@ -1,5 +1,5 @@
 # BotRecognitionTDA
-DATEN SIBD AUF EXTERNER FESTPLATTE
+DATEN SIND AUF EXTERNER FESTPLATTE
 Plan:
 stage1.py handelt das extrahieren von ego netzwerken pro nutzer und nutzt die adjazenzmatrizen um den die Persistenzdiagramme zu berechnen.
 Output ist hier dann eine datei mit persistenzdiagrammen
